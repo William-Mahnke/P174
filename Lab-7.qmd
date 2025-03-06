@@ -1,0 +1,30 @@
+---
+title: "Lab 7"
+format: html
+editor: visual
+---
+
+## Lab 7
+
+```{r}
+library(astsa)
+data(sales)
+ts(sales)
+```
+
+```{r}
+model <- arima(sales, order = c(1,0,0))
+?arima
+ts.plot(sales)
+```
+
+```{r}
+sales_acf <- acf2(sales)
+```
+
+```{r}
+sales.diff <- diff(sales, lag = 1)
+ts.plot(sales.diff)
+
+top_models <- auto.arima(sales)
+```

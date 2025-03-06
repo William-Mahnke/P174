@@ -1,0 +1,121 @@
+---
+title: "Lab 3"
+format: html
+editor: visual
+---
+
+## Lab 3
+
+### 1.1 - Loading in data
+
+```{r}
+# packages 
+library(readr)
+library(tidyverse)
+library(astsa)
+library(forecast)
+
+# reading in data 
+wine.csv <- read.table("~/Desktop/P174/monthly-australian-wine-sales-th.csv",
+                                               sep = ',',
+                                               header = F,
+                                               skip = 1,
+                                               nrows = 174)
+colnames(wine.csv) <- c("Month","Sales")
+
+# making tine series data 
+wine <- ts(wine.csv$Sales, start = c(1980,1), frequency = 12)
+
+# plotting time series
+ts.plot(wine, main = 'Wine Sales over Time')
+```
+
+### 1.2 - Questions
+
+```{r}
+# 1 - sample differencing
+wine_diff <- diff(wine, lag = 1, differences = 1)
+
+ts.plot(wine_diff, main = 'Difference of Wine') %>%
+  abline(h = 0)
+```
+
+```{r}
+# 2 - acf and pacf of differenced series
+wine_diff_acf <- acf(wine_diff, lag.max = 60, plot = T)
+
+wine_diff_pacf <- pacf(wine_diff, lag.max = 60, plot = T)
+```
+
+The acf and pacf for the differenced series tell us there is still some seasonality in the data because of the repeating values within the plots. This patterns tells us that the seasonality of the data is probably longer than one month, so the differenced series should have more lag between observations to remove the seasonality.
+
+```{r}
+# 3 - 12 month difference
+wine_diff <- diff(wine, lag = 12, differences = 1)
+
+# plotting new differenced series
+ts.plot(wine_diff, main = 'Difference of Wine') %>%
+  abline(h = 0)
+
+# acf and pacf
+wine_diff_acf <- acf(wine_diff, lag.max = 60, plot = T)
+wine_diff_pacf <- pacf(wine_diff, lag.max = 60, plot = T)
+```
+
+### Modeling GNP
+
+```{r}
+# 1 - plotting gnp as time series 
+ts.plot(gnp, main = "US GNP")
+
+# converting gnp into csv for python
+gnp_data <- gnp
+gnp_df <- data.frame(
+  Year = time(gnp_data),
+  GNP = as.numeric(gnp_data)
+)
+
+write.csv(gnp_df, "gnp_data.csv", row.names = FALSE)
+```
+
+The data shows an exponentially-increasing trend over time which implies the data isn't stationary. To make the data stationary, we could try a log transformation of the differences in quarters.
+
+```{r}
+gnp_transform <- log(gnp) %>%
+  diff(lag = 1, differences = 1)
+
+ts.plot(gnp_transform, main = "US GNP")
+```
+
+The time series now appears stationary.
+
+```{r}
+# 3 - plotting acf and pacf for new series
+acf2(gnp_transform, plot = T)
+```
+
+There appears to be a pattern in the acf values for the time series with a period of h = 8 (since lag on x-axis of the plots is divided by 4). There doesn't appear to be a pattern for the pacf values.
+
+```{r}
+# 4 - making MA(2) model and finding coefficients
+ma.model <- Arima(gnp_transform, order = c(0,0,2))
+
+summary(ma.model)
+
+ma.model$coef
+```
+
+The coefficients for the model are (approximately) $\theta_1$ = 0.303 and $\theta_2$ = 0.204
+
+```{r}
+# 5 - plotting residuals and acf of MA(2)
+plot(ma.model$residuals)
+
+acf(ma.model$arma, plot = T)
+```
+
+The model does appear to be a good fit because the residuals are decreasing as time passes.
+
+```{r}
+# 6 - 
+```

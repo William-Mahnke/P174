@@ -1,0 +1,111 @@
+---
+title: "Lab Assignment 5"
+author: "William Mahnke"
+format: html
+editor: visual
+---
+
+# Lab Assignment 5
+
+1. Design two functions for the Durbin-Levinson algorithm and the Innovation algorithm separately. 
+
+```{r}
+# Durbin-Levinson algorithm
+durbin_levinson <- function(acf){
+  n <- length(acf)
+  phi <- rep(0, n)
+  rev <- rev(acf)
+  phi_matrix <- matrix(data = rep(0, n^2), nrow = n)
+  
+  # indices for acf are one ahead of lag value
+  # no recursion required for h = 1 and h = 2
+  phi[1] <- acf[2]
+  phi_matrix[1,1] <- phi[1]
+  
+  phi[2] <- (acf[3] - acf[2]^2)/(1 - acf[2]^2)
+  phi_matrix[2,2] <- phi[2]
+  phi_matrix[2,1] <- phi_matrix[1,1] - (phi_matrix[2,2]*phi_matrix[1,1])
+  
+  # recursion step
+  for(h in c(4:n-1)){
+    phi[h] <- (acf[h+1] - sum(phi_matrix[h-1,1:h-1], acf[h+1:2])) / (1 - sum(phi_matrix[h-1,1:h-1], acf[2:h+1]))
+    phi_matrix[h,h] <- phi[h]
+    phi_matrix[h,1:h-1] <- phi_matrix[h-1,1:h-1] - (phi[h]*phi_matrix[h-1,h-1:1])
+  }
+  return(phi)
+}
+```
+
+```{r}
+# Innovations algorithm
+innovations <- function(acf){
+  n <- length(acf)
+  theta <- numeric(n) # parameter estimations
+  sigma <- numeric(n) # variances
+  pacf <- numeric(n)
+  
+  sigma[1] <- 1
+  pacf[1] <- acf[1]
+  
+  for(i in 2:n-1){
+    pacf[i] <- (acf[i+1] - sum(theta[1:(i-1)] * rev(acf[1:i-1]))) / sigma[i - 1]
+    
+    theta <- theta[1:(i-1)] - pacf[i] * rev(theta[1:(i-1)])
+    theta[1:(i-1)] <- theta
+    theta[i] <- pacf[i]
+    
+    sigma[i] <- sigma[i-1] * (1 - pacf[i]^2)
+  }
+  
+  return(theta)
+}
+```
+
+
+
+2. Use the function`arima.sim()` to generate 50 samples for 
+(a) AR(2) process with $\phi_1 = 0.5$ and $\phi_2 = -0.5$;
+(b) MA(2) process with $\theta_1 = 0.5$ and $\theta_2 = 0.5$
+
+```{r}
+set.seed(1274682)
+n <- 50
+
+# simulating AR(2)
+phi <- c(0.5,-0.5)
+ar2 <- arima.sim(model = list(phi), n)
+
+# simulating MA(2)
+theta <- c(0.5, 0.5)
+ma2 <- arima.sim(model = list(theta), n)
+```
+
+3. Find the sample ACF for `ar2` and `ma2`.
+
+```{r}
+# sample acf for ar2
+ar2_acf <- acf(ar2, lag.max = 50)
+
+# sample acf for ma2
+ma2_acf <- acf(ma2, lag.max = 50)
+```
+
+4. Apply the Durbin-Levinson algorithm that you designed to find the coefficients for the best linear predictor $P_{50}X_{51}$ for `ar2`, and find the value based on the 50 samples you have generated. Compare it with the theoretical prediction value.
+
+```{r}
+x <- durbin_levinson(ar2_acf$acf)
+```
+
+5. Apply the Innovation algorithm that you designed to find the coefficients for the innovation representation of $\hat{X}_{51}$ for `ma2`, and find the value based on the 50 samples you have generated. Compare it with the theoretical prediction value.
+
+```{r, eval=FALSE}
+y <- innovations(ma2_acf$acf)
+```
+
+
+
+
+
+
+
+

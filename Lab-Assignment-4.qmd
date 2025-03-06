@@ -1,0 +1,95 @@
+---
+title: "Lab Assignment 4"
+format: html
+editor: visual
+---
+
+## 1. Modeling Global Temperature
+
+```{r}
+# 1. plotting time series
+library(astsa)
+plot.ts(gtemp_ocean)
+```
+
+The graph shows an increasing trend in the mean `gtemp_ocean` which suggests the time series isn't stationary.
+
+```{r}
+# 2. differencing series
+ocean_diff <- diff(gtemp_ocean, 1)
+plot.ts(ocean_diff)
+```
+
+The plot does appear to be stationary.
+
+```{r}
+# 3. plotting acf and pacf
+acf2(ocean_diff, plot = T)
+```
+
+First, I would suggest `d = 1` because the differenced data shown in part 2 looks stationary. I would also suggest `p = 0` and `q = 2` because the ACF for the differenced data didn't look like an exponential decay and the acf values for the differenced data are significant until lag 3. So the best ARIMA model for the data is ARIMA(0,1,2).
+
+```{r}
+# 4. fitting selected arima model
+ocean_sarima <- sarima(gtemp_ocean, p = 0, d = 1, q = 2)
+```
+
+```{r}
+# 5. forecasting next 20 years
+sarima.for(gtemp_ocean, n.ahead = 20, p = 0, d = 1, q = 2)
+```
+
+The projection for the temperatures matches the slight increasing trend shown in the data. However, the projection shows a strictly linear trend, with no flucuation in `gtemp_ocean` within each year.
+
+## 2. Modeling Air Passengers
+
+```{r}
+# 1. plotting AirPassengers
+plot.ts(AirPassengers)
+```
+
+There appears to be a slight positive exponential trend in AirPassengers that includes a seasonal component (the season appears to be a year). The variance of the time series also appears to increase over time, thus the time series isn't stationary.
+
+```{r}
+# 2. investigating possible transformations
+log_data <- log(AirPassengers)
+dlog_data <- diff(log_data, 1)
+ddlog_data <- diff(dlog_data, 12)
+
+# creating matrix
+plot_data <- cbind(AirPassengers, log_data, dlog_data, ddlog_data)
+
+# plotting matrix of series
+plot.ts(plot_data)
+```
+
+```{r}
+# 3. acf and pacf for ddlog_data
+acf2(ddlog_data)
+```
+
+Within both plots there are major spikes at lags 1 and 12. Other repetitions of spikes at 12 lags apart confirm our suspicion of some annual seasonality in the data. Within the first 12 lags of the acf, the first two lags have significant values suggesting q = 2. The acf and pacf both don't show any exponential decay which suggests the isn't an AR component on the data (so p = 0 and likely P = 0).
+
+```{r}
+# 4. ARMA(1,1) model fit on ddlog_data
+sarima(ddlog_data, p = 1, d = 0, q = 1)
+```
+
+```{r}
+# 5. fitting two other SARIMA models
+
+# first model - (1,0,1)x(0,0,1)[12]
+sarima(ddlog_data, p = 1, d = 0, q = 1, P = 0, D = 0, Q = 1, S = 12)
+
+# second model - (0,0,1)x(0,0,1)[12]
+sarima(ddlog_data, p = 0, d = 0, q = 1, P = 0, D = 0, Q = 1, S = 12)
+```
+
+The visuals for the fits confirm that the second model {(0,0,1)x(0,0,1)\[12\]} is the better fit for the data and would therefore make better projections for the next two years.
+
+```{r}
+# 6. forecast 24 months using particular model
+sarima.for(ddlog_data, n.ahead = 24, p = 0, d = 0, q = 1, P = 0, D = 0, Q = 1, S = 12)
+```
+
+The forecast initially shows a pattern that matches the shape of `ddlog_data` for the first twelve months until the predictions eventually flatline at 0. Since the seasonal component of the forecasted model is 12, the predictions for the next 13-24 months will be equal to months 1-12, so they flatten out at 0.
